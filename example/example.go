@@ -357,6 +357,7 @@ func (t *testSession) addRuleLocal() (err error) {
 }
 
 func (t *testSession) runUPlane(ctx context.Context) {
+	fmt.Printf("runUPlane\n")
 	err := t.addRuleLocal()
 	if err != nil {
 		log.Fatalf("failed to addRuleLocal: %v", err)
