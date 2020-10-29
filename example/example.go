@@ -11,7 +11,6 @@ import (
 	"github.com/wmnsk/go-gtp/gtpv1"
 	"log"
 	"net"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -253,17 +252,6 @@ func (t *testSession) setupN3Tunnel(ctx context.Context) {
 		return
 	}
 
-	err = t.addIP()
-	if err != nil {
-		log.Fatalf("failed to addIP: %v", err)
-		return
-	}
-
-	err = t.addRuleLocal()
-	if err != nil {
-		log.Fatalf("failed to addRuleLocal: %v", err)
-		return
-	}
 
 	go t.runUPlane(ctx)
 
@@ -360,6 +348,7 @@ func (t *testSession) addRuleLocal() (err error) {
 	}
 
 	rule := netlink.NewRule()
+	rule.IifName = "ens3" //interface connect to UE PC
 	rule.Src = mask32
 	rule.Table = routeTableID
 	err = netlink.RuleAdd(rule)
@@ -368,45 +357,10 @@ func (t *testSession) addRuleLocal() (err error) {
 }
 
 func (t *testSession) runUPlane(ctx context.Context) {
-
-	fmt.Printf("runUPlane\n")
-
-	ue := t.ue
-
-	laddr, err := net.ResolveTCPAddr("tcp", ue.Recv.PDUAddress.String()+":0")
+	err := t.addRuleLocal()
 	if err != nil {
+		log.Fatalf("failed to addRuleLocal: %v", err)
 		return
-	}
-
-	dialer := net.Dialer{LocalAddr: laddr}
-	client := http.Client{
-		Transport: &http.Transport{Dial: dialer.Dial},
-		Timeout:   3 * time.Second,
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(5 * time.Second):
-			// do nothing here and go forward
-		}
-
-		rsp, err := client.Get(ue.URL)
-		if err != nil {
-			log.Fatalf("failed to GET %s: %s", ue.URL, err)
-			continue
-		}
-
-		if rsp.StatusCode == http.StatusOK {
-			log.Printf("[HTTP Probe] Successfully GET %s: "+
-				"Status: %s", ue.URL, rsp.Status)
-			rsp.Body.Close()
-			continue
-		}
-		rsp.Body.Close()
-		log.Printf("[HTTP Probe] got invalid response on HTTP probe: %v",
-			rsp.StatusCode)
 	}
 	return
 }
