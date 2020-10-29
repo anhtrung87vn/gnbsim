@@ -25,7 +25,7 @@ These instructions will get you a copy of the project up and running on your loc
     echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> ~/.bashrc
     source ~/.bashrc
 ```
-    Further information and installation instructions for golang are available at the official golang site.
+   Further information and installation instructions for golang are available at the official golang site.
 
 
 * golang environment on linux host.
