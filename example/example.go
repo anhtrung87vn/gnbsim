@@ -1,25 +1,29 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"net"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/hhorai/gnbsim/encoding/nas"
 	"github.com/hhorai/gnbsim/encoding/ngap"
 	"github.com/ishidawataru/sctp"
 	"github.com/vishvananda/netlink"
 	"github.com/wmnsk/go-gtp/gtpv1"
-	"log"
-	"net"
-	"strings"
-	"time"
 )
 
 type testSession struct {
-	conn *sctp.SCTPConn
-	info *sctp.SndRcvInfo
-	gnb  *ngap.GNB
-	ue   *nas.UE
+	conn  *sctp.SCTPConn
+	info  *sctp.SndRcvInfo
+	gnb   *ngap.GNB
+	ue    *nas.UE
+	uConn *gtpv1.UPlaneConn
 }
 
 func newTest() (t *testSession) {
@@ -189,7 +193,6 @@ func (t *testSession) registrateUE() {
 
 	// for Configuration Update Command from open5gs AMF.
 	t.recvfromAMF(3)
-
 	return
 }
 
@@ -225,6 +228,7 @@ func (t *testSession) setupN3Tunnel(ctx context.Context) {
 	}
 	fmt.Printf("test: gNB UDP local address: %v\n", addr)
 	uConn := gtpv1.NewUPlaneConn(addr)
+	t.uConn = uConn
 	//defer uConn.Close()
 
 	if err = uConn.EnableKernelGTP("gtp-gnb", gtpv1.RoleSGSN); err != nil {
@@ -252,17 +256,37 @@ func (t *testSession) setupN3Tunnel(ctx context.Context) {
 		return
 	}
 
-
-	go t.runUPlane(ctx)
-
-	select {
-	case <-ctx.Done():
-		log.Fatalf("exit gnbsim")
+	err = t.addRuleLocal()
+	if err != nil {
+		log.Fatalf("failed to addRuleLocal: %v", err)
+		return
 	}
+
+	//select {
+	//case <-ctx.Done():
+	//	log.Fatalf("exit gnbsim")
+	//}
 
 	return
 }
+func (t *testSession) delTun() {
+	if err := t.uConn.DelTunnelByMSAddress(t.ue.Recv.PDUAddress); err != nil {
+		fmt.Println("Cannot delete tunnel")
+	}
 
+	Link := &netlink.GTP{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "gtp-gnb",
+		},
+		//FD1:  int(f.Fd()),
+		Role: int(gtpv1.RoleSGSN),
+	}
+	if err := netlink.LinkDel(Link); err != nil {
+		err = fmt.Errorf("failed to DEL tun device=gtp-gnb: %s", err)
+		return
+		return
+	}
+}
 func (t *testSession) addIP() (err error) {
 
 	gnb := t.gnb
@@ -366,53 +390,39 @@ func (t *testSession) runUPlane(ctx context.Context) {
 	return
 }
 
-func runN3test() (err error) {
-
-	t := initRANwithoutSCTP()
-	t.initUE()
-
-	gnb := t.gnb
-	ue := t.ue
-
-	// temporary setting
-	gnb.Recv.GTPuPeerAddr = net.ParseIP("192.168.1.18")
-	gnb.Recv.GTPuPeerTEID = 0x12345678
-	ue.Recv.PDUAddress = net.ParseIP("60.60.60.1")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	t.setupN3Tunnel(ctx)
-
-	return
-}
-
 func main() {
-
-	log.SetPrefix("[gnbsim]")
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-
-	n3test := false
-
-	if n3test {
-		runN3test()
-		return
-	}
 
 	// usual testing
 	t := initRAN()
 	t.initUE()
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("gnbsim")
+	fmt.Println("---------------------")
+	fmt.Println("Enter 1,2,3")
+	for {
+		fmt.Println("1. UE Regist")
+		fmt.Println("2. PDU session setup")
+		fmt.Println("3. Del tunnel")
+		fmt.Print("-> ")
+		text, _ := reader.ReadString('\n')
+		// convert CRLF to LF
+		text = strings.Replace(text, "\n", "", -1)
+		if strings.Compare("1", text) == 0 {
+			t.registrateUE()
+			time.Sleep(time.Second * 3)
+		} else if strings.Compare("2", text) == 0 {
+			t.establishPDUSession()
+			time.Sleep(time.Second * 3)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			t.setupN3Tunnel(ctx)
+			time.Sleep(time.Second * 3)
+		} else if strings.Compare("3", text) == 0 {
+			t.delTun()
+			time.Sleep(time.Second * 3)
+		}
 
-	t.registrateUE()
-	time.Sleep(time.Second * 3)
-
-	t.establishPDUSession()
-	time.Sleep(time.Second * 3)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	t.setupN3Tunnel(ctx)
-	time.Sleep(time.Second * 3)
+	}
 
 	return
 }
