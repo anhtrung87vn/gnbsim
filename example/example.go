@@ -125,7 +125,7 @@ func (t *testSession) recvfromAMF(timeout time.Duration) {
 	return
 }
 
-func initRAN() (t *testSession) {
+func initRAN(ctx context.Context) (t *testSession) {
 
 	t = new(testSession)
 	gnb := ngap.NewNGAP("example.json")
@@ -137,10 +137,31 @@ func initRAN() (t *testSession) {
 	t.conn = conn
 	t.info = info
 
+	addr, err := net.ResolveUDPAddr("udp", gnb.GTPuAddr+gtpv1.GTPUPort)
+	if err != nil {
+		log.Fatalf("failed to net.ResolveUDPAddr: %v", err)
+		return
+	}
+	fmt.Printf("test: gNB UDP local address: %v\n", addr)
+	t.uConn = gtpv1.NewUPlaneConn(addr)
+	//defer uConn.Close()
+	uConn := t.uConn
+	if err = uConn.EnableKernelGTP("gtp-gnb", gtpv1.RoleSGSN); err != nil {
+		log.Fatalf("failed to EnableKernelGTP: %v", err)
+		return
+	}
+
+	go func() {
+		if err := uConn.ListenAndServe(ctx); err != nil {
+			log.Println(err)
+			return
+		}
+		log.Println("uConn.ListenAndServe exited")
+	}()
+
 	pdu := gnb.MakeNGSetupRequest()
 	t.sendtoAMF(pdu)
 	t.recvfromAMF(0)
-
 	return
 }
 
@@ -210,39 +231,16 @@ func (t *testSession) establishPDUSession() {
 	return
 }
 
-func (t *testSession) setupN3Tunnel(ctx context.Context) {
+func (t *testSession) setupN3Tunnel() {
 
 	gnb := t.gnb
 	ue := t.ue
-
+	uConn := t.uConn
 	log.Printf("test: GTPuIFname: %s\n", gnb.GTPuIFname)
 	log.Printf("test: GTP-U Peer: %v\n", gnb.Recv.GTPuPeerAddr)
 	log.Printf("test: GTP-U Peer TEID: %v\n", gnb.Recv.GTPuPeerTEID)
 	log.Printf("test: GTP-U Local TEID: %v\n", gnb.GTPuTEID)
 	log.Printf("test: UE address: %v\n", ue.Recv.PDUAddress)
-
-	addr, err := net.ResolveUDPAddr("udp", gnb.GTPuAddr+gtpv1.GTPUPort)
-	if err != nil {
-		log.Fatalf("failed to net.ResolveUDPAddr: %v", err)
-		return
-	}
-	fmt.Printf("test: gNB UDP local address: %v\n", addr)
-	uConn := gtpv1.NewUPlaneConn(addr)
-	t.uConn = uConn
-	//defer uConn.Close()
-
-	if err = uConn.EnableKernelGTP("gtp-gnb", gtpv1.RoleSGSN); err != nil {
-		log.Fatalf("failed to EnableKernelGTP: %v", err)
-		return
-	}
-
-	go func() {
-		if err := uConn.ListenAndServe(ctx); err != nil {
-			log.Println(err)
-			return
-		}
-		log.Println("uConn.ListenAndServe exited")
-	}()
 
 	if err := uConn.AddTunnelOverride(
 		gnb.Recv.GTPuPeerAddr, ue.Recv.PDUAddress,
@@ -251,12 +249,12 @@ func (t *testSession) setupN3Tunnel(ctx context.Context) {
 		return
 	}
 
-	if err = t.addRoute(uConn); err != nil {
+	if err := t.addRoute(uConn); err != nil {
 		log.Fatalf("failed to addRoute: %v", err)
 		return
 	}
 
-	err = t.addRuleLocal()
+	err := t.addRuleLocal()
 	if err != nil {
 		log.Fatalf("failed to addRuleLocal: %v", err)
 		return
@@ -274,18 +272,19 @@ func (t *testSession) delTun() {
 		fmt.Println("Cannot delete tunnel")
 	}
 
-	Link := &netlink.GTP{
-		LinkAttrs: netlink.LinkAttrs{
-			Name: "gtp-gnb",
-		},
-		//FD1:  int(f.Fd()),
-		Role: int(gtpv1.RoleSGSN),
-	}
-	if err := netlink.LinkDel(Link); err != nil {
-		err = fmt.Errorf("failed to DEL tun device=gtp-gnb: %s", err)
-		return
-		return
-	}
+	/*	Link := &netlink.GTP{
+			LinkAttrs: netlink.LinkAttrs{
+				Name: "gtp-gnb",
+			},
+			//FD1:  int(f.Fd()),
+			Role: int(gtpv1.RoleSGSN),
+		}
+		if err := netlink.LinkDel(Link); err != nil {
+			err = fmt.Errorf("failed to DEL tun device=gtp-gnb: %s", err)
+			return
+
+		}
+	*/
 }
 func (t *testSession) addIP() (err error) {
 
@@ -393,7 +392,8 @@ func (t *testSession) runUPlane(ctx context.Context) {
 func main() {
 
 	// usual testing
-	t := initRAN()
+	ctx, cancel := context.WithCancel(context.Background())
+	t := initRAN(ctx)
 	t.initUE()
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("gnbsim")
@@ -413,9 +413,9 @@ func main() {
 		} else if strings.Compare("2", text) == 0 {
 			t.establishPDUSession()
 			time.Sleep(time.Second * 3)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			t.setupN3Tunnel(ctx)
+			//ctx, cancel := context.WithCancel(context.Background())
+			//defer cancel()
+			t.setupN3Tunnel()
 			time.Sleep(time.Second * 3)
 		} else if strings.Compare("3", text) == 0 {
 			t.delTun()
@@ -423,6 +423,6 @@ func main() {
 		}
 
 	}
-
+	defer cancel()
 	return
 }
