@@ -94,7 +94,7 @@ $ sudo sysctl -w net.ipv4.ip_forward=1
 $ cd example
 $ vi example.json
 ```
-* Edit example.go in gnbsim/example directory
+* Edit interface name in gnbsim/example/example.go directory to map to your server.
 ```
 func (t *testSession) addRuleLocal() (err error) {
 ..
