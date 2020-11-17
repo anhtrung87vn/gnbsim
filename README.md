@@ -91,14 +91,22 @@ $ vi example.json
 ```
 $ sudo ./example -ip <AMF NGAP listen ip address set above>
 ```
-
-* Then you can find the following line in the debug message. In this case, your configuration for `OPc` and `K` are both correct.
+* The gNB will connect to AMF and show a prompt for next actions as below:
+```
+gnbsim
+---------------------
+Enter 1,2,3
+1. UE Registration
+2. PDU session setup
+3. Stop gNB
+-> 
+```
+* Then you can find the following line in the debug message when choose UE Registration. In this case, your configuration for `OPc` and `K` are both correct.
 ```
 ***** Integrity check passed
 ```
-
 * And you could also find your UE in 'subscriber' page of free5gc web console.
-
+* You can enter 2 for "PDU session setup" multiple times to create new PDU sessions. 
 ## Progress
 * [x] Initial Registration
 * [x] PDU Session Establishment
