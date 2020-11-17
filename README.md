@@ -72,13 +72,14 @@ $ cd gnbsim
 ```
 $ make test		# test for each libary.
 $ make			# building example binary.
+$ sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
 * Edit the configuration file.
   - `imeisv` replace with the registered value of IMSI in free5gc web console (e.g. `208930000000003`)
   - `msin` replace with last 10 digits of the IMSI (e.g. `0000000003`)
-  - `GTPuAddr` for the IP address of gnbsim
-  - `GTPuIFname` for the network interface of gnbsim
+  - `GTPuAddr` for the IP address of gnbsim (eg. 10.250.176.15)
+  - `GTPuIFname` for the network interface of gnbsim (eg. ens9)
   - `UE.url` is access URL for testing U-Plane.
 
 ```
