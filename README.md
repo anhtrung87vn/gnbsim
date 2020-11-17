@@ -96,7 +96,10 @@ $ vi example.json
 ```
 * Edit example.go in gnbsim/example directory
 ```
-Modify func (t *testSession) addRuleLocal() (err error) {
+func (t *testSession) addRuleLocal() (err error) {
+..
+rule.IifName = "ens3" => ens3 is the interface connect to external VM.
+...
 ```
 
 * run 'example' with 'ip' option and specify the AMF IP address.
