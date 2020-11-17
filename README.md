@@ -106,7 +106,7 @@ Enter 1,2,3
 ***** Integrity check passed
 ```
 * And you could also find your UE in 'subscriber' page of free5gc web console.
-* You can enter 2 for "PDU session setup" multiple times to create new PDU sessions. 
+* You can enter 2 for "PDU session setup" multiple times to create new PDU sessions. But the new GTP tunnel will overwrite the old one.
 ## Progress
 * [x] Initial Registration
 * [x] PDU Session Establishment
