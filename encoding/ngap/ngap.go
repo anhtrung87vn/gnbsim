@@ -25,6 +25,7 @@ import (
 
 	"github.com/hhorai/gnbsim/encoding/nas"
 	"github.com/hhorai/gnbsim/encoding/per"
+	"github.com/wmnsk/go-gtp/gtpv1"
 )
 
 const (
@@ -107,7 +108,7 @@ type GNB struct {
 		GTPuPeerAddr net.IP
 		GTPuPeerTEID uint32
 	}
-
+	uConn      *gtpv1.UPlaneConn
 	SendNasMsg *[]byte
 	RecvNasMsg *[]byte
 

@@ -229,6 +229,8 @@ func (ue *UE) PowerON() {
 	ue.Recv.state = rcvdNull
 
 	ue.wa.forceRINMR = true
+	//	ue.sm.pduSessionId = 0x01
+	//	ue.sm.procedureTransactionId = 0x01
 }
 
 func (ue *UE) Receive(pdu *[]byte) {
@@ -681,12 +683,20 @@ func (ue *UE) MakeSecurityModeComplete() (pdu []byte) {
 	return
 }
 
+// PduSessionID() PDU ID increament for new PDU session
+func (ue *UE) PduSessionID() {
+	ue.sm.pduSessionId++
+	return
+}
+
+// ProcedureTransactionID() PDU transaction increament for new PDU session.
+func (ue *UE) ProcedureTransactionID() {
+	ue.sm.procedureTransactionId++
+	return
+}
+
 // 8.3.1 PDU session establishment request
 func (ue *UE) MakePDUSessionEstablishmentRequest() (pdu []byte) {
-
-	ue.sm.pduSessionId = 0x01
-	ue.sm.procedureTransactionId = 0x01
-
 	pdu = ue.enc5GSSMMessageHeader(
 		ue.sm.pduSessionId,           // 9.4 PDU Session ID
 		ue.sm.procedureTransactionId, // 9.6 Procedure Transaction ID

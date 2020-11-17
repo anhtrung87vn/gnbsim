@@ -8,7 +8,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hhorai/gnbsim/encoding/nas"
@@ -218,7 +220,8 @@ func (t *testSession) registrateUE() {
 }
 
 func (t *testSession) establishPDUSession() {
-
+	t.ue.PduSessionID()
+	t.ue.ProcedureTransactionID()
 	pdu := t.ue.MakePDUSessionEstablishmentRequest()
 	t.gnb.RecvfromUE(&pdu)
 	buf := t.gnb.MakeUplinkNASTransport()
@@ -268,23 +271,23 @@ func (t *testSession) setupN3Tunnel() {
 	return
 }
 func (t *testSession) delTun() {
-	if err := t.uConn.DelTunnelByMSAddress(t.ue.Recv.PDUAddress); err != nil {
-		fmt.Println("Cannot delete tunnel")
-	}
-
-	/*	Link := &netlink.GTP{
-			LinkAttrs: netlink.LinkAttrs{
-				Name: "gtp-gnb",
-			},
-			//FD1:  int(f.Fd()),
-			Role: int(gtpv1.RoleSGSN),
-		}
-		if err := netlink.LinkDel(Link); err != nil {
-			err = fmt.Errorf("failed to DEL tun device=gtp-gnb: %s", err)
-			return
-
+	/*	if err := t.uConn.DelTunnelByMSAddress(t.ue.Recv.PDUAddress); err != nil {
+			fmt.Println("Cannot delete tunnel")
 		}
 	*/
+	Link := &netlink.GTP{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "gtp-gnb",
+		},
+		//FD1:  int(f.Fd()),
+		Role: int(gtpv1.RoleSGSN),
+	}
+	if err := netlink.LinkDel(Link); err != nil {
+		err = fmt.Errorf("failed to DEL tun device=gtp-gnb: %s", err)
+		return
+
+	}
+
 }
 func (t *testSession) addIP() (err error) {
 
@@ -389,20 +392,33 @@ func (t *testSession) runUPlane(ctx context.Context) {
 	return
 }
 
+func (t *testSession) setupCloseHandler() {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r- !!!gNB stopped!!!")
+		t.delTun()
+		os.Exit(0)
+	}()
+}
+
 func main() {
 
 	// usual testing
 	ctx, cancel := context.WithCancel(context.Background())
 	t := initRAN(ctx)
+	defer cancel()
 	t.initUE()
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("gnbsim")
 	fmt.Println("---------------------")
 	fmt.Println("Enter 1,2,3")
+	t.setupCloseHandler()
 	for {
-		fmt.Println("1. UE Regist")
+		fmt.Println("1. UE Registration")
 		fmt.Println("2. PDU session setup")
-		fmt.Println("3. Del tunnel")
+		fmt.Println("3. Stop gNB")
 		fmt.Print("-> ")
 		text, _ := reader.ReadString('\n')
 		// convert CRLF to LF
@@ -419,10 +435,12 @@ func main() {
 			time.Sleep(time.Second * 3)
 		} else if strings.Compare("3", text) == 0 {
 			t.delTun()
-			time.Sleep(time.Second * 3)
+			fmt.Println("\r- !!!gNB stopped!!!")
+			os.Exit(0)
+			//time.Sleep(time.Second * 3)
 		}
 
 	}
-	defer cancel()
+
 	return
 }
