@@ -1,6 +1,14 @@
 # gnbsim
 gnbsim is a 5G SA gNB/UE (Rel. 16) simulator for testing 5G System. The project is aimed to understand 5GC more efficiently than just reading 3GPP standard documents.
 
+The cli_input branch is modified from master to develop some features: 
+1. Access to internet from an external VM
+2. Create multiple PDU sessions
+3. Quit gNB with gtp-gnb interface deletion.
+4. CLI prompt
+
+* Here is the model used in this branch.
+![image](https://github.com/anhtrung87vn/gnbsim/blob/cli_input/gnbsim_connection.png)
 ## Getting Started
 <!--
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
@@ -85,6 +93,10 @@ $ sudo sysctl -w net.ipv4.ip_forward=1
 ```
 $ cd example
 $ vi example.json
+```
+* Edit example.go in gnbsim/example directory
+```
+Modify func (t *testSession) addRuleLocal() (err error) {
 ```
 
 * run 'example' with 'ip' option and specify the AMF IP address.
