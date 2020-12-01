@@ -72,12 +72,15 @@ These instructions will get you a copy of the project up and running on your loc
 
 ```
 $ git clone https://github.com/hhorai/gnbsim.git
-$ cd gnbsim
+$ cd gnbsim/example
+$ go mod edit -replace github.com/hhorai/gnbsim/encoding/nas=/home/ubuntu/go/src/gnbsim/encoding/nas
+
 ```
 
 * Build example binary.
 
 ```
+$ cd ~/gnbsim
 $ make test		# test for each libary.
 $ make			# building example binary.
 $ sudo sysctl -w net.ipv4.ip_forward=1
