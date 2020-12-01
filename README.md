@@ -1,6 +1,14 @@
 # gnbsim
 gnbsim is a 5G SA gNB/UE (Rel. 16) simulator for testing 5G System. The project is aimed to understand 5GC more efficiently than just reading 3GPP standard documents.
 
+The cli_input branch is modified from master to develop some features: 
+1. Access to internet from an external VM
+2. Create multiple PDU sessions
+3. Quit gNB with gtp-gnb interface deletion.
+4. CLI prompt
+
+* Here is the model used in this branch.
+![image](https://github.com/anhtrung87vn/gnbsim/blob/cli_input/gnbsim_connection.png)
 ## Getting Started
 <!--
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
@@ -72,18 +80,26 @@ $ cd gnbsim
 ```
 $ make test		# test for each libary.
 $ make			# building example binary.
+$ sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
 * Edit the configuration file.
   - `imeisv` replace with the registered value of IMSI in free5gc web console (e.g. `208930000000003`)
   - `msin` replace with last 10 digits of the IMSI (e.g. `0000000003`)
-  - `GTPuAddr` for the IP address of gnbsim
-  - `GTPuIFname` for the network interface of gnbsim
+  - `GTPuAddr` for the IP address of gnbsim (eg. 10.250.176.15)
+  - `GTPuIFname` for the network interface of gnbsim (eg. ens9)
   - `UE.url` is access URL for testing U-Plane.
 
 ```
 $ cd example
 $ vi example.json
+```
+* Edit interface name in gnbsim/example/example.go directory to map to your server.
+```
+func (t *testSession) addRuleLocal() (err error) {
+..
+rule.IifName = "ens3" => ens3 is the interface connect to external VM.
+...
 ```
 
 * run 'example' with 'ip' option and specify the AMF IP address.
@@ -91,14 +107,22 @@ $ vi example.json
 ```
 $ sudo ./example -ip <AMF NGAP listen ip address set above>
 ```
-
-* Then you can find the following line in the debug message. In this case, your configuration for `OPc` and `K` are both correct.
+* The gNB will connect to AMF and show a prompt for next actions as below:
+```
+gnbsim
+---------------------
+Enter 1,2,3
+1. UE Registration
+2. PDU session setup
+3. Stop gNB
+-> 
+```
+* Then you can find the following line in the debug message when choose UE Registration. In this case, your configuration for `OPc` and `K` are both correct.
 ```
 ***** Integrity check passed
 ```
-
 * And you could also find your UE in 'subscriber' page of free5gc web console.
-
+* You can enter 2 for "PDU session setup" multiple times to create new PDU sessions. But the new GTP tunnel will overwrite the old one.
 ## Progress
 * [x] Initial Registration
 * [x] PDU Session Establishment
