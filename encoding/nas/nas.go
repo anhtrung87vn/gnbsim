@@ -229,8 +229,6 @@ func (ue *UE) PowerON() {
 	ue.Recv.state = rcvdNull
 
 	ue.wa.forceRINMR = true
-	//	ue.sm.pduSessionId = 0x01
-	//	ue.sm.procedureTransactionId = 0x01
 }
 
 func (ue *UE) Receive(pdu *[]byte) {
